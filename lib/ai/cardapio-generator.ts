@@ -1,9 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { FAIXAS_ETARIAS, type FaixaEtariaId, GRUPOS_EQUIVALENCIA } from "@/lib/constants";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-const MODEL = "claude-sonnet-4-5-20250929";
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? "");
+const MODEL_NAME = "gemini-2.0-flash-exp";
 
 export interface CardapioRefeicao {
   dia: number;
@@ -30,7 +29,7 @@ export interface ItemCompra {
   item: string;
 }
 
-/** Prompt base para o Claude gerar um cardápio semanal */
+/** Prompt base para o Gemini gerar um cardápio semanal */
 function systemPrompt(faixa: FaixaEtariaId): string {
   const faixaInfo = FAIXAS_ETARIAS.find((f) => f.id === faixa)!;
 
@@ -69,8 +68,7 @@ Formato da resposta: JSON válido, apenas. Sem explicações, sem markdown.
 Schema:
 {
   "refeicoes": [
-    { "dia": 1, "refeicao": "desjejum", "descricao": "..." },
-    ...
+    { "dia": 1, "refeicao": "desjejum", "descricao": "..." }
   ]
 }
 
@@ -79,6 +77,27 @@ Se algum dia for feriado, marque assim:
 
 Se atividade suspensa:
 { "dia": 1, "refeicao": "almoco", "descricao": null, "especial": "atividade_suspensa" }`;
+}
+
+async function callGemini(system: string, user: string): Promise<string> {
+  const model = genAI.getGenerativeModel({
+    model: MODEL_NAME,
+    systemInstruction: system,
+    generationConfig: {
+      temperature: 0.7,
+      maxOutputTokens: 4096,
+      responseMimeType: "application/json",
+    },
+  });
+
+  const result = await model.generateContent(user);
+  return result.response.text();
+}
+
+function extractJSON(text: string): any {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("IA não retornou JSON válido");
+  return JSON.parse(match[0]);
 }
 
 /** Gera um cardápio novo baseado em referência da prefeitura + lista de compras */
@@ -127,23 +146,8 @@ export async function gerarCardapio(params: {
     "Responda APENAS com o JSON.",
   ].join("\n");
 
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 4096,
-    system: systemPrompt(faixa_etaria),
-    messages: [{ role: "user", content: userMsg }],
-  });
-
-  const text =
-    response.content[0].type === "text" ? response.content[0].text : "";
-
-  // Extrai JSON da resposta (tolera se vier com markdown)
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error("IA não retornou JSON válido");
-  }
-
-  const parsed = JSON.parse(jsonMatch[0]);
+  const text = await callGemini(systemPrompt(faixa_etaria), userMsg);
+  const parsed = extractJSON(text);
 
   return {
     faixa_etaria,
@@ -186,17 +190,6 @@ Responda com JSON no formato:
 
 Responda APENAS com o JSON.`;
 
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 4096,
-    system: systemPrompt(faixa_etaria),
-    messages: [{ role: "user", content: userMsg }],
-  });
-
-  const text =
-    response.content[0].type === "text" ? response.content[0].text : "";
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("IA não retornou JSON válido");
-
-  return JSON.parse(jsonMatch[0]);
+  const text = await callGemini(systemPrompt(faixa_etaria), userMsg);
+  return extractJSON(text);
 }
