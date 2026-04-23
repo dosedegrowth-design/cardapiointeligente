@@ -1,6 +1,6 @@
 # Cardápio Inteligente — Regras & Lógica
 
-> **Projeto HL / Dose de Growth**
+> **Projeto Dose de Growth**
 > Sistema de geração e gestão inteligente de cardápios semanais para creches (CEIs).
 > Gera cardápio automaticamente a partir da referência da prefeitura, cruza com a lista de compras enviada por cada unidade e permite personalização por unidade.
 
@@ -74,8 +74,8 @@ RLS no Supabase:
 
 ## 4. Regras de Negócio
 
-### 4.1 Faixas etárias (padrão HL — **NÃO é igual à prefeitura**)
-A prefeitura cobre até 6 anos. A HL usa apenas 3 faixas:
+### 4.1 Faixas etárias (**NÃO é igual à prefeitura**)
+A prefeitura cobre até 6 anos. Este sistema usa apenas 3 faixas:
 1. `bercario_1_0_5m` — Berçário I (0 a 5 meses) — só leite materno/fórmula 1
 2. `bercario_1_6_11m` — Berçário I (6 a 11 meses) — fórmula 2 + introdução alimentar
 3. `bercario_2_multi` — Berçário II / Multietário (1 a 4 anos) — alimentação completa
@@ -310,7 +310,7 @@ create table cardapio.config (
 
 | Decisão                  | Escolha                        | Motivo                                                      |
 | ------------------------ | ------------------------------ | ----------------------------------------------------------- |
-| Framework                | Next.js 14 App Router          | Padrão HL, SSR, rotas API simples                           |
+| Framework                | Next.js 14 App Router          | SSR, rotas API simples, integração Vercel                   |
 | Styling                  | Tailwind + shadcn/ui           | Velocidade + consistência visual                            |
 | Animação                 | Framer Motion                  | Microinterações lúdicas pedidas pelo Lucas                  |
 | DB                       | Supabase Postgres              | RLS, Auth, Edge Functions, Storage — tudo integrado         |
@@ -408,4 +408,4 @@ supabase functions deploy gerar-pdf
 ---
 
 **Mantenedor:** Lucas Cassiano (Dose de Growth)
-**Cliente final:** HL / Rede de CEIs
+**Aplicação:** Rede de CEIs (creches)

@@ -16,7 +16,7 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Cardápio Inteligente — HL",
+  title: "Cardápio Inteligente",
   description: "Sistema de gestão inteligente de cardápios semanais para CEIs.",
 };
 
