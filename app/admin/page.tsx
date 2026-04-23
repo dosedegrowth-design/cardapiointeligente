@@ -1,200 +1,271 @@
 import Link from "next/link";
-import { Calendar, CheckCircle2, Clock, Sparkles, TrendingUp, Users } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Calendar,
+  CheckCircle2,
+  ShoppingCart,
+  Sparkles,
+  ArrowRight,
+} from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
-import { formatWeekRange, getMondayOfWeek, toISODate } from "@/lib/utils";
+import {
+  formatWeekRange,
+  getMondayOfWeek,
+  getFridayOfWeek,
+  toISODate,
+} from "@/lib/utils";
 import { FAIXAS_ETARIAS } from "@/lib/constants";
 
 export default async function AdminDashboard() {
   const supabase = createClient();
-  const mondayThisWeek = toISODate(getMondayOfWeek());
+  const monday = getMondayOfWeek();
+  const friday = getFridayOfWeek(monday);
+  const mondayISO = toISODate(monday);
+  const fridayISO = toISODate(friday);
 
-  const [
-    { count: unidadesCount },
-    { count: cardapiosPublicados },
-    { count: listasEnviadas },
-    { data: proximosCardapios },
-  ] = await Promise.all([
-    supabase.from("unidades").select("*", { count: "exact", head: true }).eq("ativo", true),
-    supabase
-      .from("cardapios_padrao")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "publicado"),
-    supabase
-      .from("listas_compras")
-      .select("*", { count: "exact", head: true })
-      .eq("semana_inicio", mondayThisWeek),
-    supabase
-      .from("cardapios_padrao")
-      .select("*")
-      .gte("semana_inicio", mondayThisWeek)
-      .order("semana_inicio", { ascending: true })
-      .limit(6),
-  ]);
+  // Lista da semana (global)
+  const { data: listaSemana } = await supabase
+    .from("listas_compras")
+    .select("id, itens, enviada_em")
+    .eq("semana_inicio", mondayISO)
+    .is("unidade_id", null)
+    .maybeSingle();
 
-  const stats = [
-    {
-      label: "Unidades ativas",
-      value: unidadesCount ?? 0,
-      icon: Users,
-      color: "bg-pastel-sky text-sky-700",
-      href: "/admin/unidades",
-    },
-    {
-      label: "Cardápios publicados",
-      value: cardapiosPublicados ?? 0,
-      icon: CheckCircle2,
-      color: "bg-pastel-mint text-emerald-700",
-      href: "/admin/semanas",
-    },
-    {
-      label: "Listas esta semana",
-      value: listasEnviadas ?? 0,
-      icon: Clock,
-      color: "bg-pastel-butter text-amber-700",
-      href: "/admin/semanas",
-    },
-    {
-      label: "Substituições IA",
-      value: 0,
-      icon: Sparkles,
-      color: "bg-pastel-rose text-rose-700",
-      href: "/admin/semanas",
-    },
-  ];
+  // Cardápios desta semana
+  const { data: cardapiosSemana } = await supabase
+    .from("cardapios_padrao")
+    .select("id, faixa_etaria, status")
+    .eq("semana_inicio", mondayISO);
+
+  const temLista = !!listaSemana;
+  const temCardapio = (cardapiosSemana?.length ?? 0) > 0;
+  const tudoPublicado =
+    temCardapio &&
+    cardapiosSemana!.every((c: any) => c.status === "publicado");
+
+  // Próximos cardápios (não da semana atual)
+  const { data: proximosCardapios } = await supabase
+    .from("cardapios_padrao")
+    .select("*")
+    .gt("semana_inicio", mondayISO)
+    .order("semana_inicio", { ascending: true })
+    .limit(6);
 
   return (
     <div className="space-y-8 animate-fade-up">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="font-serif text-3xl font-bold text-brand-dark">
-            Bem-vinda, nutricionista
-          </h1>
-          <p className="text-brand-dark/60 mt-1">
-            Aqui você acompanha tudo que está rolando nas unidades.
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/admin/semanas/nova">
-            <Sparkles className="w-4 h-4" />
-            Gerar cardápio com IA
-          </Link>
-        </Button>
+      <div>
+        <h1 className="font-serif text-3xl font-bold text-brand-dark">
+          Bem-vinda, nutricionista 👋
+        </h1>
+        <p className="text-brand-dark/60 mt-1">
+          Semana atual: {formatWeekRange(mondayISO, fridayISO)}
+        </p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map(({ label, value, icon: Icon, color, href }) => (
-          <Link key={label} href={href}>
-            <Card className="hover:shadow-md transition-all hover:-translate-y-0.5">
-              <CardContent className="p-5">
-                <div className={`w-10 h-10 rounded-xl ${color} flex items-center justify-center mb-3`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <div className="text-3xl font-serif font-bold text-brand-dark">
-                  {value}
-                </div>
-                <div className="text-sm text-brand-dark/60">{label}</div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
+      {/* Fluxo semanal em 3 passos */}
+      <div>
+        <h2 className="font-serif text-xl font-bold text-brand-dark mb-4">
+          Fluxo da semana
+        </h2>
+        <div className="grid md:grid-cols-3 gap-4">
+          <StepCard
+            n={1}
+            title="Lista de compras"
+            description="Cole aqui a lista que você comprou esta semana."
+            icon={ShoppingCart}
+            color="secondary"
+            done={temLista}
+            href="/admin/lista-compras"
+            cta={temLista ? "Atualizar lista" : "Cadastrar agora →"}
+            meta={
+              temLista
+                ? `${(listaSemana.itens as any[]).length} itens cadastrados`
+                : undefined
+            }
+          />
+          <StepCard
+            n={2}
+            title="Gerar cardápio"
+            description="IA cria 3 cardápios usando a lista + referência da prefeitura."
+            icon={Sparkles}
+            color="primary"
+            done={temCardapio}
+            disabled={!temLista}
+            href={`/admin/semanas/nova?semana=${mondayISO}`}
+            cta={temCardapio ? "Regerar ou editar" : "Gerar agora →"}
+            meta={temCardapio ? `${cardapiosSemana!.length}/3 criados` : undefined}
+          />
+          <StepCard
+            n={3}
+            title="Publicar"
+            description="Unidades só veem quando você publica."
+            icon={CheckCircle2}
+            color="mint"
+            done={tudoPublicado}
+            disabled={!temCardapio}
+            href={`/admin/semanas/${mondayISO}`}
+            cta={tudoPublicado ? "Ver cardápios" : "Revisar e publicar →"}
+            meta={
+              temCardapio
+                ? `${cardapiosSemana!.filter((c: any) => c.status === "publicado").length}/3 publicados`
+                : undefined
+            }
+          />
+        </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Próximos cardápios</CardTitle>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link href="/admin/semanas">Ver todos</Link>
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {proximosCardapios && proximosCardapios.length > 0 ? (
-                proximosCardapios.map((c: any) => {
-                  const faixa = FAIXAS_ETARIAS.find((f) => f.id === c.faixa_etaria);
-                  return (
-                    <Link
-                      key={c.id}
-                      href={`/admin/semanas/${c.semana_inicio}`}
-                      className="flex items-center justify-between p-3 rounded-xl hover:bg-brand-light/60 transition group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl bg-${faixa?.cor} flex items-center justify-center`}>
-                          <Calendar className="w-5 h-5 text-brand-dark/70" />
-                        </div>
-                        <div>
-                          <div className="font-medium text-brand-dark text-sm">
-                            {formatWeekRange(c.semana_inicio, c.semana_fim)}
-                          </div>
-                          <div className="text-xs text-brand-dark/50">
-                            {faixa?.nome} · {faixa?.idade}
-                          </div>
-                        </div>
-                      </div>
-                      <StatusBadge status={c.status} />
-                    </Link>
-                  );
-                })
-              ) : (
-                <EmptyState />
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card className="bg-gradient-to-br from-brand-primary to-pastel-coral text-white">
-          <CardContent className="p-6">
-            <Sparkles className="w-8 h-8 mb-3 opacity-90" />
-            <h3 className="font-serif text-xl font-bold mb-2">
-              Gere com IA
+      {/* Lista de próximas semanas */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-serif text-lg font-bold text-brand-dark">
+              Próximas semanas
             </h3>
-            <p className="text-sm text-white/80 mb-4 leading-relaxed">
-              Deixe a IA criar o cardápio da próxima semana baseado na
-              referência da prefeitura + listas de compras enviadas.
-            </p>
-            <Button variant="secondary" size="sm" asChild className="bg-white text-brand-primary hover:bg-white/90">
-              <Link href="/admin/semanas/nova">
-                Gerar agora
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/admin/semanas">
+                Ver todas <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </Button>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+          {proximosCardapios && proximosCardapios.length > 0 ? (
+            <div className="space-y-2">
+              {(() => {
+                const grupos = new Map<string, any[]>();
+                for (const c of proximosCardapios as any[]) {
+                  if (!grupos.has(c.semana_inicio)) grupos.set(c.semana_inicio, []);
+                  grupos.get(c.semana_inicio)!.push(c);
+                }
+                return Array.from(grupos.entries()).map(([semana, items]) => (
+                  <Link
+                    key={semana}
+                    href={`/admin/semanas/${semana}`}
+                    className="flex items-center justify-between p-3 rounded-xl hover:bg-brand-light/60 transition group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center">
+                        <Calendar className="w-4 h-4 text-brand-dark/70" />
+                      </div>
+                      <div>
+                        <div className="font-medium text-brand-dark text-sm">
+                          {formatWeekRange(semana, items[0].semana_fim)}
+                        </div>
+                        <div className="text-xs text-brand-dark/50">
+                          {items.length} faixa{items.length > 1 ? "s" : ""}{" "}
+                          etária{items.length > 1 ? "s" : ""} ·{" "}
+                          {items.filter((i) => i.status === "publicado").length}/{items.length}{" "}
+                          publicado
+                        </div>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-brand-dark/30 group-hover:text-brand-primary transition" />
+                  </Link>
+                ));
+              })()}
+            </div>
+          ) : (
+            <p className="text-sm text-brand-dark/50 text-center py-8">
+              Nenhuma semana futura ainda. Gere o cardápio da próxima semana acima.
+            </p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; className: string }> = {
-    draft: { label: "Rascunho", className: "bg-zinc-100 text-zinc-700" },
-    em_revisao: { label: "Em revisão", className: "bg-amber-100 text-amber-700" },
-    aprovado: { label: "Aprovado", className: "bg-sky-100 text-sky-700" },
-    publicado: { label: "Publicado", className: "bg-emerald-100 text-emerald-700" },
-    arquivado: { label: "Arquivado", className: "bg-zinc-100 text-zinc-500" },
+function StepCard({
+  n,
+  title,
+  description,
+  icon: Icon,
+  color,
+  done,
+  disabled,
+  href,
+  cta,
+  meta,
+}: {
+  n: number;
+  title: string;
+  description: string;
+  icon: React.ElementType;
+  color: "primary" | "secondary" | "mint";
+  done: boolean;
+  disabled?: boolean;
+  href: string;
+  cta: string;
+  meta?: string;
+}) {
+  const colorMap = {
+    primary: {
+      bg: "from-brand-primary to-pastel-coral",
+      accent: "text-brand-primary bg-brand-primary/10",
+    },
+    secondary: {
+      bg: "from-brand-secondary to-pastel-sage",
+      accent: "text-brand-secondary bg-brand-secondary/10",
+    },
+    mint: {
+      bg: "from-emerald-500 to-teal-500",
+      accent: "text-emerald-600 bg-emerald-100",
+    },
   };
-  const m = map[status] ?? map.draft;
-  return <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${m.className}`}>{m.label}</span>;
-}
+  const c = colorMap[color];
 
-function EmptyState() {
+  if (disabled) {
+    return (
+      <Card className="opacity-50 cursor-not-allowed">
+        <CardContent className="p-5">
+          <div className="flex items-start justify-between mb-3">
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center bg-zinc-100`}
+            >
+              <Icon className="w-5 h-5 text-zinc-400" />
+            </div>
+            <div className="text-xs font-bold text-zinc-400">Passo {n}</div>
+          </div>
+          <h3 className="font-serif text-lg font-bold text-zinc-500 mb-1">
+            {title}
+          </h3>
+          <p className="text-xs text-zinc-400 mb-3">{description}</p>
+          <div className="text-xs text-zinc-400">
+            Complete o passo anterior
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <div className="py-10 text-center">
-      <div className="w-14 h-14 mx-auto rounded-2xl bg-brand-light flex items-center justify-center mb-3">
-        <TrendingUp className="w-6 h-6 text-brand-dark/40" />
-      </div>
-      <p className="text-sm text-brand-dark/60 mb-3">
-        Nenhum cardápio ainda.
-      </p>
-      <Button size="sm" asChild>
-        <Link href="/admin/semanas/nova">
-          <Sparkles className="w-4 h-4" />
-          Gerar primeiro
-        </Link>
-      </Button>
-    </div>
+    <Link href={href}>
+      <Card
+        className={`hover:shadow-lg transition-all hover:-translate-y-1 cursor-pointer h-full ${done ? "ring-2 ring-emerald-400" : ""}`}
+      >
+        <CardContent className="p-5">
+          <div className="flex items-start justify-between mb-3">
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center ${c.accent}`}
+            >
+              <Icon className="w-5 h-5" />
+            </div>
+            <div className="text-xs font-bold text-brand-dark/40">
+              Passo {n}
+            </div>
+          </div>
+          <h3 className="font-serif text-lg font-bold text-brand-dark mb-1 flex items-center gap-2">
+            {title}
+            {done && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+          </h3>
+          <p className="text-xs text-brand-dark/60 mb-3">{description}</p>
+          {meta && (
+            <div className="text-xs text-brand-dark/70 font-medium mb-2">
+              {meta}
+            </div>
+          )}
+          <div className="text-sm font-medium text-brand-primary">{cta}</div>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }

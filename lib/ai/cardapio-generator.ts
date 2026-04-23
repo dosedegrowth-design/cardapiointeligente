@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { FAIXAS_ETARIAS, type FaixaEtariaId, GRUPOS_EQUIVALENCIA } from "@/lib/constants";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? "");
-const MODEL_NAME = "gemini-2.0-flash-exp";
+const MODEL_NAME = "gemini-2.5-flash";
 
 export interface CardapioRefeicao {
   dia: number;

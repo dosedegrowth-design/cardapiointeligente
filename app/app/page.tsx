@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Download, FileText, ShoppingCart, Sparkles } from "lucide-react";
+import { Download, FileText, Sparkles, AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
@@ -24,11 +24,12 @@ export default async function UnidadeDashboard() {
 
   const { data: usuario } = await supabase
     .from("usuarios")
-    .select("unidade_id, unidades(id, nome, cor_primaria, faixas_atendidas)")
+    .select("role, unidade_id, unidades(id, nome, cor_primaria, faixas_atendidas)")
     .eq("id", user!.id)
     .single();
 
   const unidade = usuario?.unidades as any;
+  const isSuperAdmin = usuario?.role === "super_admin";
   const faixasAtendidas: string[] = unidade?.faixas_atendidas ?? [
     "bercario_1_0_5m",
     "bercario_1_6_11m",
@@ -41,52 +42,35 @@ export default async function UnidadeDashboard() {
     .eq("semana_inicio", mondayISO)
     .eq("status", "publicado");
 
-  const { data: listaSemana } = await supabase
-    .from("listas_compras")
-    .select("id, enviada_em")
-    .eq("unidade_id", usuario?.unidade_id ?? "")
-    .eq("semana_inicio", mondayISO)
-    .maybeSingle();
-
   const temCardapios = (cardapiosSemana?.length ?? 0) > 0;
 
   return (
     <div className="space-y-8 animate-fade-up">
       <div>
         <h1 className="font-serif text-3xl font-bold text-brand-dark">
-          Olá, {unidade?.nome ?? "sua unidade"} 👋
+          Olá, {unidade?.nome ?? (isSuperAdmin ? "admin (visualizando)" : "sua unidade")} 👋
         </h1>
         <p className="text-brand-dark/60 mt-1">
           Semana atual: {formatWeekRange(mondayISO, fridayISO)}
         </p>
       </div>
 
-      {!listaSemana ? (
-        <Card className="bg-gradient-to-br from-brand-secondary to-pastel-sage text-white border-0 overflow-hidden relative">
-          <CardContent className="p-6 flex items-center justify-between gap-6 flex-wrap relative z-10">
-            <div className="flex items-start gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
-                <ShoppingCart className="w-7 h-7" />
+      {/* Status do cardápio */}
+      {!temCardapios ? (
+        <Card className="bg-amber-50 border-amber-200">
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
+              <AlertCircle className="w-6 h-6 text-amber-700" />
+            </div>
+            <div className="flex-1">
+              <div className="font-medium text-amber-900">
+                Cardápio ainda não publicado
               </div>
-              <div>
-                <div className="text-xs uppercase tracking-wider opacity-80 mb-1">
-                  Passo 1 de 2
-                </div>
-                <h3 className="font-serif text-xl font-bold mb-1">
-                  Envie a lista de compras
-                </h3>
-                <p className="text-sm text-white/80 max-w-md">
-                  Assim que mandar, a IA personaliza o cardápio pra sua
-                  unidade com os itens que você comprou.
-                </p>
+              <div className="text-xs text-amber-800/80">
+                A nutricionista ainda vai publicar o cardápio desta semana.
+                Você receberá acesso assim que disponível.
               </div>
             </div>
-            <Button
-              asChild
-              className="bg-white text-brand-secondary hover:bg-white/90 shadow-lg"
-            >
-              <Link href="/app/lista-compras">Enviar agora →</Link>
-            </Button>
           </CardContent>
         </Card>
       ) : (
@@ -97,15 +81,18 @@ export default async function UnidadeDashboard() {
             </div>
             <div className="flex-1">
               <div className="font-medium text-brand-dark">
-                Lista enviada! Seu cardápio está pronto pra baixar.
+                Cardápio da semana disponível! 🎉
               </div>
               <div className="text-xs text-brand-dark/60">
-                Enviada em{" "}
-                {new Date(listaSemana.enviada_em).toLocaleString("pt-BR")}
+                Visualize, ajuste se quiser alguma refeição, e baixe o PDF
+                pronto pra imprimir.
               </div>
             </div>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/app/lista-compras">Ver lista</Link>
+            <Button asChild>
+              <Link href={`/api/pdf?semana=${mondayISO}`} target="_blank">
+                <Download className="w-4 h-4" />
+                Baixar PDF
+              </Link>
             </Button>
           </CardContent>
         </Card>
@@ -116,14 +103,6 @@ export default async function UnidadeDashboard() {
           <h2 className="font-serif text-xl font-bold text-brand-dark">
             Cardápios desta semana
           </h2>
-          {temCardapios && (
-            <Button size="sm" asChild>
-              <Link href={`/api/pdf?semana=${mondayISO}`} target="_blank">
-                <Download className="w-4 h-4" />
-                Baixar todos em PDF
-              </Link>
-            </Button>
-          )}
         </div>
         <div className="grid md:grid-cols-3 gap-4">
           {FAIXAS_ETARIAS.filter((f) => faixasAtendidas.includes(f.id)).map(
@@ -155,7 +134,7 @@ export default async function UnidadeDashboard() {
                             href={`/app/semana/${mondayISO}?faixa=${faixa.id}`}
                           >
                             <FileText className="w-4 h-4" />
-                            Visualizar
+                            Visualizar e ajustar
                           </Link>
                         </Button>
                         <Button
@@ -175,7 +154,7 @@ export default async function UnidadeDashboard() {
                       </div>
                     ) : (
                       <div className="text-xs text-brand-dark/50 py-3 text-center bg-brand-light/50 rounded-lg">
-                        Aguardando publicação pela nutricionista
+                        Aguardando publicação
                       </div>
                     )}
                   </CardContent>

@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChefHat, LogOut, Home, Calendar, ShoppingCart } from "lucide-react";
+import {
+  ChefHat,
+  LogOut,
+  Home,
+  Calendar,
+  ShoppingCart,
+  Eye,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -20,11 +27,12 @@ export function AppHeader({ role, userName, unidadeName }: Props) {
     role === "super_admin"
       ? [
           { href: "/admin", label: "Início", icon: Home },
+          { href: "/admin/lista-compras", label: "Lista de compras", icon: ShoppingCart },
           { href: "/admin/semanas", label: "Cardápios", icon: Calendar },
+          { href: "/app", label: "Ver como unidade", icon: Eye },
         ]
       : [
           { href: "/app", label: "Início", icon: Home },
-          { href: "/app/lista-compras", label: "Compras", icon: ShoppingCart },
         ];
 
   async function handleLogout() {

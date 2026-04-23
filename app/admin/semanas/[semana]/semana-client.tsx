@@ -11,6 +11,7 @@ import {
   XCircle,
   Loader2,
   Archive,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -221,7 +222,16 @@ export function SemanaClient({ semana, faixaInicial, cardapios }: Props) {
               {cardapioAtual && <StatusBadge status={cardapioAtual.status} />}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" asChild>
+              <Link
+                href={`/api/pdf?semana=${semana}`}
+                target="_blank"
+              >
+                <Download className="w-4 h-4" />
+                Baixar PDF (3 faixas)
+              </Link>
+            </Button>
             {cardapioAtual?.status !== "publicado" ? (
               <Button
                 onClick={() => handleChangeStatus("publicado")}

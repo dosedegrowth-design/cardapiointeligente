@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 
+// GET: busca lista de compras por semana
+// - Super Admin: retorna lista global (unidade_id IS NULL)
+// - Unidade: retorna lista global também (usa a que o admin cadastrou)
 export async function GET(request: Request) {
   try {
     const supabase = createClient();
@@ -10,22 +13,16 @@ export async function GET(request: Request) {
     if (!user)
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
-    const { data: usuario } = await supabase
-      .from("usuarios")
-      .select("unidade_id")
-      .eq("id", user.id)
-      .single();
-    if (!usuario?.unidade_id) return NextResponse.json({ itens: [] });
-
     const { searchParams } = new URL(request.url);
     const semana = searchParams.get("semana");
     if (!semana) return NextResponse.json({ itens: [] });
 
-    const { data } = await supabase
+    const admin = createAdminClient();
+    const { data } = await admin
       .from("listas_compras")
       .select("*")
-      .eq("unidade_id", usuario.unidade_id)
       .eq("semana_inicio", semana)
+      .is("unidade_id", null)
       .maybeSingle();
 
     return NextResponse.json({ itens: data?.itens ?? [], id: data?.id });
@@ -34,6 +31,7 @@ export async function GET(request: Request) {
   }
 }
 
+// POST: salva lista (só super_admin)
 export async function POST(request: Request) {
   try {
     const supabase = createClient();
@@ -45,13 +43,13 @@ export async function POST(request: Request) {
 
     const { data: usuario } = await supabase
       .from("usuarios")
-      .select("unidade_id")
+      .select("role")
       .eq("id", user.id)
       .single();
-    if (!usuario?.unidade_id)
+    if (usuario?.role !== "super_admin")
       return NextResponse.json(
-        { error: "Usuário sem unidade" },
-        { status: 400 }
+        { error: "Só o Super Admin pode cadastrar a lista de compras" },
+        { status: 403 }
       );
 
     const body = await request.json();
@@ -59,24 +57,43 @@ export async function POST(request: Request) {
     if (!semana_inicio || !Array.isArray(itens))
       return NextResponse.json({ error: "Body inválido" }, { status: 400 });
 
-    const { data, error } = await supabase
+    const admin = createAdminClient();
+
+    // Upsert lista global (unidade_id = null)
+    const { data: existente } = await admin
       .from("listas_compras")
-      .upsert(
-        {
-          unidade_id: usuario.unidade_id,
-          semana_inicio,
+      .select("id")
+      .eq("semana_inicio", semana_inicio)
+      .is("unidade_id", null)
+      .maybeSingle();
+
+    if (existente) {
+      const { error } = await admin
+        .from("listas_compras")
+        .update({
           itens,
-          created_by: user.id,
           enviada_em: new Date().toISOString(),
-        },
-        { onConflict: "unidade_id,semana_inicio" }
-      )
+          created_by: user.id,
+        })
+        .eq("id", existente.id);
+      if (error) throw error;
+      return NextResponse.json({ ok: true, id: existente.id });
+    }
+
+    const { data: nova, error } = await admin
+      .from("listas_compras")
+      .insert({
+        unidade_id: null,
+        semana_inicio,
+        itens,
+        created_by: user.id,
+        enviada_em: new Date().toISOString(),
+      })
       .select("id")
       .single();
 
     if (error) throw error;
-
-    return NextResponse.json({ ok: true, id: data.id });
+    return NextResponse.json({ ok: true, id: nova.id });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

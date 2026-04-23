@@ -6,41 +6,36 @@ import { getFridayOfWeek, toISODate } from "@/lib/utils";
 
 export async function POST(request: Request) {
   try {
-    // 1) Auth check
     const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) {
+    if (!user)
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-    }
 
-    // Só super_admin pode gerar
     const { data: usuario } = await supabase
       .from("usuarios")
       .select("role")
       .eq("id", user.id)
       .single();
-    if (usuario?.role !== "super_admin") {
+    if (usuario?.role !== "super_admin")
       return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
-    }
 
-    // 2) Parse body
     const body = await request.json();
     const { semana_inicio } = body as { semana_inicio: string };
-    if (!semana_inicio) {
+    if (!semana_inicio)
       return NextResponse.json(
         { error: "semana_inicio é obrigatório" },
         { status: 400 }
       );
-    }
 
     const semana_fim = toISODate(
       getFridayOfWeek(new Date(semana_inicio + "T00:00:00"))
     );
 
-    // 3) Buscar referência da prefeitura (mês correspondente)
     const admin = createAdminClient();
+
+    // 1) Referência da prefeitura (mês correspondente)
     const mes = new Date(semana_inicio).getMonth() + 1;
     const ano = new Date(semana_inicio).getFullYear();
     const { data: referencias } = await admin
@@ -49,10 +44,21 @@ export async function POST(request: Request) {
       .eq("ano", ano)
       .eq("mes", mes)
       .limit(1);
-
     const referencia = referencias?.[0];
 
-    // 4) Gerar os 3 cardápios (em paralelo)
+    // 2) Lista de compras GLOBAL (unidade_id IS NULL) da semana
+    const { data: listaGlobal } = await admin
+      .from("listas_compras")
+      .select("itens")
+      .eq("semana_inicio", semana_inicio)
+      .is("unidade_id", null)
+      .maybeSingle();
+
+    const listaCompras = listaGlobal?.itens as
+      | Array<{ quantidade: string; unidade: string; item: string }>
+      | undefined;
+
+    // 3) Gerar os 3 cardápios em paralelo
     const gerados = await Promise.all(
       FAIXAS_ETARIAS.map((f) =>
         gerarCardapio({
@@ -60,15 +66,19 @@ export async function POST(request: Request) {
           semana_inicio,
           semana_fim,
           referencia: referencia
-            ? { semana_inicio: referencia.semana_inicio, conteudo: referencia.conteudo_extraido, canva_url: referencia.canva_url }
+            ? {
+                semana_inicio: referencia.semana_inicio,
+                conteudo: referencia.conteudo_extraido,
+                canva_url: referencia.canva_url,
+              }
             : undefined,
+          lista_compras: listaCompras,
         })
       )
     );
 
-    // 5) Salvar no Supabase (upsert por semana + faixa)
+    // 4) Salvar no Supabase
     for (const g of gerados) {
-      // Deletar cardápio existente pra essa semana/faixa (se houver)
       const { data: existente } = await admin
         .from("cardapios_padrao")
         .select("id")
@@ -76,9 +86,8 @@ export async function POST(request: Request) {
         .eq("faixa_etaria", g.faixa_etaria)
         .maybeSingle();
 
-      if (existente) {
+      if (existente)
         await admin.from("cardapios_padrao").delete().eq("id", existente.id);
-      }
 
       const { data: novo, error: err1 } = await admin
         .from("cardapios_padrao")
@@ -94,9 +103,9 @@ export async function POST(request: Request) {
         .select("id")
         .single();
 
-      if (err1 || !novo) throw new Error(err1?.message || "Erro ao salvar cardápio");
+      if (err1 || !novo)
+        throw new Error(err1?.message || "Erro ao salvar cardápio");
 
-      // Inserir refeições
       const refeicoesInsert = g.refeicoes.map((r) => ({
         cardapio_id: novo.id,
         dia: r.dia,
@@ -109,11 +118,15 @@ export async function POST(request: Request) {
       const { error: err2 } = await admin
         .from("cardapio_refeicoes")
         .insert(refeicoesInsert);
-
       if (err2) throw new Error(err2.message);
     }
 
-    return NextResponse.json({ ok: true, semana_inicio });
+    return NextResponse.json({
+      ok: true,
+      semana_inicio,
+      usou_lista_compras: !!listaCompras,
+      usou_referencia_prefeitura: !!referencia,
+    });
   } catch (err: any) {
     console.error("Erro ao gerar cardápio:", err);
     return NextResponse.json(
