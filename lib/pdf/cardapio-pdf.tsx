@@ -155,38 +155,47 @@ const styles = StyleSheet.create({
     minHeight: 58,
   },
 
-  // Célula lateral (nome refeição)
+  // Célula lateral (nome refeição) — centralizado
   refCell: {
     width: 78,
     padding: 8,
     justifyContent: "center",
+    alignItems: "center",
   },
   refCellLabel: {
     fontFamily: "Fraunces",
     fontSize: 9,
     fontWeight: 600,
+    textAlign: "center",
   },
   refCellHora: {
     fontSize: 7,
     color: "#9CA3AF",
-    marginTop: 1,
+    marginTop: 2,
     fontFamily: "Inter",
+    textAlign: "center",
   },
 
-  // Célula de conteúdo
+  // Célula de conteúdo — centralizado H+V
   cell: {
     flex: 1,
-    padding: 7,
+    padding: 6,
     borderLeftWidth: 0.5,
     borderLeftColor: "#E5E7EB",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cellText: {
     fontSize: 7.5,
     lineHeight: 1.35,
     color: "#374151",
-    justifyContent: "flex-start",
+    textAlign: "center",
   },
   cellEmpty: {
+    fontSize: 7.5,
     color: "#D1D5DB",
     fontStyle: "italic",
+    textAlign: "center",
   },
 
   // Especial (feriado/suspensa)
@@ -322,7 +331,7 @@ function CardapioPage({ data }: { data: CardapioPDFData }) {
                 return (
                   <View key={d.id} style={styles.cell}>
                     {cell?.descricao ? (
-                      <Text>{cell.descricao}</Text>
+                      <Text style={styles.cellText}>{cell.descricao}</Text>
                     ) : (
                       <Text style={styles.cellEmpty}>—</Text>
                     )}

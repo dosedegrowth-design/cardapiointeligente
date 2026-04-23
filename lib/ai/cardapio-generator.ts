@@ -37,7 +37,7 @@ const PADRAO_CODAE = `
 PADRÕES DA CODAE (Coordenadoria de Alimentação Escolar - SP):
 
 == ESTRUTURA DO ALMOÇO (BERÇÁRIO II / 1-4 ANOS) ==
-- Segunda a sexta: sempre ARROZ + FEIJÃO + PROTEÍNA + LEGUME/FOLHA + FRUTA
+- Segunda a sexta: sempre ARROZ + FEIJÃO + PROTEÍNA + SALADA (OBRIGATÓRIA, variar: alface, rúcula, agrião, repolho, escarola, couve, almeirão, pepino, beterraba ralada, cenoura ralada, tomate) + LEGUME REFOGADO + FRUTA
 - Variar feijão entre: carioca, preto, branco, fradinho, lentilha, grão-de-bico
 - Variar carboidrato: arroz branco, arroz integral, macarrão (penne, parafuso, penne integral, parafuso integral, caracolino, padre nosso), mandioca, mandioquinha, batata, batata doce, inhame, polenta, cará
 - Variar proteína: carne bovina (moída/iscas/acebolada/Kafta/Ragú/Rocambole), carne suína (com abóbora/pimentão/toque de limão/copa lombo), frango (assado/desfiado/refogado/em cubos/arrepiado/ao molho), peixe (grelhado/cozido/ao molho/ao vinagrete/à lusitana), ovo (mexido/omelete/à portuguesa)
@@ -100,16 +100,17 @@ function systemPrompt(faixa: FaixaEtariaId): string {
     bercario_2_multi: `- Alimentação completa seguindo estrutura CODAE.
 - DESJEJUM: leite integral/cacau + carboidrato + fruta
 - COLAÇÃO: 1 fruta
-- ALMOÇO: ARROZ + FEIJÃO + PROTEÍNA ANIMAL + LEGUME/FOLHA + FRUTA
+- ALMOÇO: ARROZ + FEIJÃO + PROTEÍNA ANIMAL + SALADA/FOLHA + LEGUME REFOGADO + FRUTA
 - LANCHE: leite integral
 - TARDE: sopa / risoto / massa
 
 REGRAS OBRIGATÓRIAS ADICIONAIS:
-1. QUARTA E SEXTA — refeição da tarde deve ter PROTEÍNA VEGETAL (grão de bico, lentilha, feijão, ervilha). SEM carne/frango/peixe nessas refeições.
-2. A CADA 15 DIAS, pelo menos 1 dia com ARROZ INTEGRAL ou MACARRÃO INTEGRAL
-3. VARIEDADE é obrigatória: varie os tipos de feijão entre os dias (carioca, preto, branco, fradinho, lentilha, grão-de-bico)
-4. Não repetir a mesma proteína em dias consecutivos
-5. Fruta todos os dias (desjejum + colação + tarde ou sobremesa)`,
+1. SALADA é OBRIGATÓRIA em TODOS os almoços (segunda a sexta). Variar entre: alface, rúcula, agrião, acelga, repolho, escarola, couve, almeirão, chicória, pepino, beterraba ralada, cenoura ralada, tomate. Pode ser crua ("Salada de alface com rúcula") ou refogada ("Escarola refogada"). Exemplos: "Salada de acelga", "Salada de alface com agrião", "Cenoura ralada refogada", "Repolho bicolor refogado", "Salada de beterraba ralada".
+2. QUARTA E SEXTA — refeição da tarde deve ter PROTEÍNA VEGETAL (grão de bico, lentilha, feijão, ervilha). SEM carne/frango/peixe nessas refeições.
+3. A CADA 15 DIAS, pelo menos 1 dia com ARROZ INTEGRAL ou MACARRÃO INTEGRAL
+4. VARIEDADE é obrigatória: varie os tipos de feijão entre os dias (carioca, preto, branco, fradinho, lentilha, grão-de-bico)
+5. Não repetir a mesma proteína em dias consecutivos
+6. Fruta todos os dias (desjejum + colação + tarde ou sobremesa)`,
   };
 
   return `Você é a nutricionista RT da CODAE (Coordenadoria de Alimentação Escolar - SP), elaborando um Cardápio Inteligente para CEI (Centro de Educação Infantil).

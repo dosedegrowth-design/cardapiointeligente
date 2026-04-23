@@ -33,11 +33,11 @@ export const DIAS_SEMANA = [
 ] as const;
 
 export const REFEICOES = [
-  { id: "desjejum", nome: "Desjejum", cor: "pastel-rose", horario: "~7h" },
-  { id: "colacao", nome: "Colação", cor: "pastel-butter", horario: "~9h30" },
-  { id: "almoco", nome: "Almoço", cor: "pastel-mint", horario: "~11h30" },
-  { id: "lanche", nome: "Lanche", cor: "pastel-peach", horario: "~14h30" },
-  { id: "tarde", nome: "Refeição da tarde", cor: "pastel-lavender", horario: "~16h" },
+  { id: "desjejum", nome: "Desjejum", cor: "pastel-rose", horario: "07h30" },
+  { id: "colacao", nome: "Colação", cor: "pastel-butter", horario: "09h00" },
+  { id: "almoco", nome: "Almoço", cor: "pastel-mint", horario: "10h45" },
+  { id: "lanche", nome: "Lanche", cor: "pastel-peach", horario: "13h30" },
+  { id: "tarde", nome: "Refeição da tarde", cor: "pastel-lavender", horario: "14h45" },
 ] as const;
 
 export type RefeicaoId = (typeof REFEICOES)[number]["id"];
