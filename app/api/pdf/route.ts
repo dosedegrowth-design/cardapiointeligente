@@ -10,7 +10,6 @@ import React from "react";
 
 /**
  * GET /api/pdf?semana=YYYY-MM-DD&faixa=bercario_X&unidade_id=UUID
- * - unidade_id opcional: se passado, aplica overrides da unidade
  */
 export async function GET(request: Request) {
   try {
@@ -18,49 +17,73 @@ export async function GET(request: Request) {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user)
+    if (!user) {
+      console.log("[PDF] Não autenticado");
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
 
     const { searchParams } = new URL(request.url);
     const semana = searchParams.get("semana");
     const faixa = searchParams.get("faixa") as FaixaEtariaId | null;
     const unidadeIdParam = searchParams.get("unidade_id");
 
-    if (!semana)
+    console.log("[PDF] Request:", { semana, faixa, unidadeIdParam, userId: user.id });
+
+    if (!semana) {
       return NextResponse.json(
-        { error: "semana obrigatória" },
+        { error: "Parâmetro 'semana' é obrigatório" },
         { status: 400 }
       );
+    }
 
     const admin = createAdminClient();
 
-    // Busca cardápio(s) padrão da semana + refeições
-    const query = admin
+    // Descobre papel do user
+    const { data: usuario } = await admin
+      .from("usuarios")
+      .select("role, unidade_id")
+      .eq("id", user.id)
+      .single();
+
+    console.log("[PDF] Usuario:", usuario);
+
+    const isSuperAdmin = usuario?.role === "super_admin";
+
+    // Busca cardápios da semana
+    // - super_admin: vê qualquer status
+    // - unidade: só publicados
+    let query = admin
       .from("cardapios_padrao")
       .select("*, cardapio_refeicoes(*)")
       .eq("semana_inicio", semana);
 
-    if (faixa) query.eq("faixa_etaria", faixa);
+    if (!isSuperAdmin) query = query.eq("status", "publicado");
+    if (faixa) query = query.eq("faixa_etaria", faixa);
 
-    const { data: cardapios } = await query;
-    if (!cardapios || cardapios.length === 0)
+    const { data: cardapios, error: errCard } = await query;
+
+    if (errCard) {
+      console.error("[PDF] Erro ao buscar cardápios:", errCard);
       return NextResponse.json(
-        { error: "Cardápio não encontrado" },
-        { status: 404 }
+        { error: "Erro DB: " + errCard.message },
+        { status: 500 }
       );
-
-    // Descobre qual unidade
-    let unidadeId = unidadeIdParam;
-    if (!unidadeId) {
-      const { data: usr } = await supabase
-        .from("usuarios")
-        .select("unidade_id")
-        .eq("id", user.id)
-        .single();
-      unidadeId = usr?.unidade_id ?? null;
     }
 
-    let unidadeNome = "Sua Unidade";
+    console.log("[PDF] Cardápios encontrados:", cardapios?.length ?? 0);
+
+    if (!cardapios || cardapios.length === 0) {
+      return NextResponse.json(
+        {
+          error: `Cardápio não encontrado pra semana ${semana}${faixa ? " faixa " + faixa : ""}. ${isSuperAdmin ? "" : "Talvez ainda não esteja publicado."}`,
+        },
+        { status: 404 }
+      );
+    }
+
+    // Descobre a unidade p/ overrides e cor/nome
+    let unidadeId = unidadeIdParam ?? usuario?.unidade_id ?? null;
+    let unidadeNome = "Rede";
     let corPrimaria = "#E07A5F";
 
     if (unidadeId) {
@@ -75,7 +98,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // Para cada cardápio, busca overrides da unidade (se houver)
+    // Monta pages (3 faixas ou 1 se filtrou)
     const pages: CardapioPDFData[] = [];
     for (const c of cardapios as any[]) {
       const grid: Record<number, Record<string, any>> = {};
@@ -88,6 +111,7 @@ export async function GET(request: Request) {
         };
       }
 
+      // Aplica overrides da unidade, se houver
       if (unidadeId) {
         const { data: cu } = await admin
           .from("cardapios_unidade")
@@ -127,9 +151,13 @@ export async function GET(request: Request) {
         FAIXAS_ETARIAS.findIndex((f) => f.id === b.faixa_etaria)
     );
 
+    console.log("[PDF] Gerando PDF com", pages.length, "páginas");
+
     const buffer = await renderToBuffer(
       React.createElement(CardapioPDFDocument as any, { pages }) as any
     );
+
+    console.log("[PDF] PDF gerado:", buffer.byteLength, "bytes");
 
     const slug = unidadeNome
       .toLowerCase()
@@ -143,7 +171,10 @@ export async function GET(request: Request) {
       },
     });
   } catch (err: any) {
-    console.error("PDF error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("[PDF] Erro fatal:", err);
+    return NextResponse.json(
+      { error: err.message ?? "Erro desconhecido" },
+      { status: 500 }
+    );
   }
 }
