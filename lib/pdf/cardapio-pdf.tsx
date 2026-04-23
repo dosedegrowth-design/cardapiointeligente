@@ -10,34 +10,36 @@ import type { FaixaEtariaId, RefeicaoId } from "@/lib/constants";
 import { DIAS_SEMANA, REFEICOES, FAIXAS_ETARIAS } from "@/lib/constants";
 import { formatWeekRange } from "@/lib/utils";
 
-// Fontes elegantes (CDN Google Fonts)
+// Fontes via CDN estável (jsdelivr / fontsource)
+// Fraunces = serif elegante (títulos)
 Font.register({
   family: "Fraunces",
   fonts: [
     {
-      src: "https://fonts.gstatic.com/s/fraunces/v37/6NUh8FyLNQOQZAnv9ZwNjucOoPtQpBE.ttf",
+      src: "https://cdn.jsdelivr.net/fontsource/fonts/fraunces@latest/latin-400-normal.ttf",
       fontWeight: 400,
     },
     {
-      src: "https://fonts.gstatic.com/s/fraunces/v37/6NUh8FyLNQOQZAnv9ZwNjucWoPtQpBE.ttf",
+      src: "https://cdn.jsdelivr.net/fontsource/fonts/fraunces@latest/latin-700-normal.ttf",
       fontWeight: 700,
     },
   ],
 });
 
+// Inter = sans moderna (corpo)
 Font.register({
   family: "Inter",
   fonts: [
     {
-      src: "https://fonts.gstatic.com/s/inter/v19/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.ttf",
+      src: "https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.ttf",
       fontWeight: 400,
     },
     {
-      src: "https://fonts.gstatic.com/s/inter/v19/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2JL7.ttf",
+      src: "https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-500-normal.ttf",
       fontWeight: 500,
     },
     {
-      src: "https://fonts.gstatic.com/s/inter/v19/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1pL7.ttf",
+      src: "https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-600-normal.ttf",
       fontWeight: 600,
     },
   ],
