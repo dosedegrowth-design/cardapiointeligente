@@ -177,7 +177,7 @@ export function SemanaClient({ semana, faixaInicial, cardapios }: Props) {
       }
       toast.success(
         novoStatus === "publicado"
-          ? "Publicado! Unidades já podem ver 🎉"
+          ? "Faixa publicada! (use Publicar Todas pra liberar as 3 de uma vez)"
           : novoStatus === "arquivado"
             ? "Arquivado"
             : "Voltou para rascunho"
@@ -194,6 +194,52 @@ export function SemanaClient({ semana, faixaInicial, cardapios }: Props) {
     }
   }
 
+  async function handlePublicarTodos() {
+    setPublishing(true);
+    try {
+      const res = await fetch("/api/cardapios/publicar-semana", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ semana_inicio: semana }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json();
+        throw new Error(error ?? "Erro");
+      }
+      const { publicados } = await res.json();
+      toast.success(`🎉 ${publicados} cardápios publicados! Unidades já podem ver.`);
+      setLocalData((prev) =>
+        prev.map((c) => ({ ...c, status: "publicado" }))
+      );
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setPublishing(false);
+    }
+  }
+
+  async function handleDespublicarTodos() {
+    setPublishing(true);
+    try {
+      const res = await fetch(
+        `/api/cardapios/publicar-semana?semana_inicio=${semana}`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) {
+        const { error } = await res.json();
+        throw new Error(error ?? "Erro");
+      }
+      toast.success("Tudo voltou para rascunho");
+      setLocalData((prev) => prev.map((c) => ({ ...c, status: "draft" })));
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setPublishing(false);
+    }
+  }
+
+  const todasPublicadas = localData.length > 0 && localData.every((c) => c.status === "publicado");
+  const algumaPublicada = localData.some((c) => c.status === "publicado");
   const grid = cardapioAtual ? buildGrid(cardapioAtual.cardapio_refeicoes) : {};
 
   return (
@@ -212,14 +258,38 @@ export function SemanaClient({ semana, faixaInicial, cardapios }: Props) {
               Semana de{" "}
               {formatWeekRange(semana, cardapioAtual?.semana_fim ?? semana)}
             </h1>
-            <div className="flex items-center gap-3 mt-1 text-sm">
+            <div className="flex items-center gap-3 mt-1 text-sm flex-wrap">
               {cardapioAtual?.gerado_por === "ia" && (
                 <span className="inline-flex items-center gap-1 text-brand-dark/60">
                   <Sparkles className="w-3.5 h-3.5" />
                   Gerado com IA
                 </span>
               )}
-              {cardapioAtual && <StatusBadge status={cardapioAtual.status} />}
+              {/* Status geral das 3 faixas */}
+              <span className="inline-flex items-center gap-1.5 text-xs">
+                <span className="text-brand-dark/60">Status:</span>
+                <span
+                  className={`px-2 py-0.5 rounded-full font-medium ${
+                    todasPublicadas
+                      ? "bg-emerald-100 text-emerald-700"
+                      : algumaPublicada
+                        ? "bg-amber-100 text-amber-700"
+                        : "bg-zinc-100 text-zinc-700"
+                  }`}
+                >
+                  {todasPublicadas
+                    ? "3/3 publicadas ✓"
+                    : algumaPublicada
+                      ? `${localData.filter((c) => c.status === "publicado").length}/3 publicadas`
+                      : "Todas em rascunho"}
+                </span>
+              </span>
+              {cardapioAtual && (
+                <span className="inline-flex items-center gap-1.5 text-xs">
+                  <span className="text-brand-dark/60">Faixa atual:</span>
+                  <StatusBadge status={cardapioAtual.status} />
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -232,37 +302,30 @@ export function SemanaClient({ semana, faixaInicial, cardapios }: Props) {
                 Baixar PDF (3 faixas)
               </Link>
             </Button>
-            {cardapioAtual?.status !== "publicado" ? (
+
+            {/* Botão principal: publica/despublica as 3 faixas de uma vez */}
+            {!todasPublicadas ? (
               <Button
-                onClick={() => handleChangeStatus("publicado")}
+                onClick={handlePublicarTodos}
                 disabled={publishing}
+                className="bg-emerald-600 hover:bg-emerald-700"
               >
                 {publishing ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <CheckCircle2 className="w-4 h-4" />
                 )}
-                Publicar
+                Publicar todas as 3 faixas
               </Button>
             ) : (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => handleChangeStatus("draft")}
-                  disabled={publishing}
-                >
-                  <XCircle className="w-4 h-4" />
-                  Despublicar
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => handleChangeStatus("arquivado")}
-                  disabled={publishing}
-                >
-                  <Archive className="w-4 h-4" />
-                  Arquivar
-                </Button>
-              </>
+              <Button
+                variant="outline"
+                onClick={handleDespublicarTodos}
+                disabled={publishing}
+              >
+                <XCircle className="w-4 h-4" />
+                Despublicar todas
+              </Button>
             )}
           </div>
         </div>
