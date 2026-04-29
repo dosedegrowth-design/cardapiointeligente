@@ -9,6 +9,7 @@ import {
   Calendar,
   ShoppingCart,
   Eye,
+  Clock,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,7 @@ export function AppHeader({ role, userName, unidadeName }: Props) {
         ]
       : [
           { href: "/app", label: "Início", icon: Home },
+          { href: "/app/horarios", label: "Horários", icon: Clock },
         ];
 
   async function handleLogout() {

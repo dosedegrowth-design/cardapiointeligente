@@ -58,6 +58,7 @@ export interface CardapioPDFData {
   semana_fim: string;
   faixa_etaria: FaixaEtariaId;
   grid: Record<number, Record<string, Cell>>;
+  horarios?: Record<string, string> | null;
 }
 
 // Cores pastel por refeição (estilo Studio Cute)
@@ -288,6 +289,7 @@ function CardapioPage({ data }: { data: CardapioPDFData }) {
         {/* Linhas de refeição */}
         {REFEICOES.map((ref) => {
           const cores = CORES_REFEICAO[ref.id];
+          const horarioCustom = data.horarios?.[ref.id] ?? ref.horario;
           return (
             <View key={ref.id} style={styles.row}>
               {/* Label da refeição */}
@@ -297,7 +299,7 @@ function CardapioPage({ data }: { data: CardapioPDFData }) {
                 <Text style={[styles.refCellLabel, { color: cores.label }]}>
                   {ref.nome}
                 </Text>
-                <Text style={styles.refCellHora}>{ref.horario}</Text>
+                <Text style={styles.refCellHora}>{horarioCustom}</Text>
               </View>
 
               {/* Células dos dias */}

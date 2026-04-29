@@ -29,6 +29,7 @@ export interface CardapioCell {
 interface Props {
   grid: Record<number, Partial<Record<RefeicaoId, CardapioCell>>>;
   editable?: boolean;
+  horarios?: Partial<Record<RefeicaoId, string>> | null;
   onSave?: (
     dia: number,
     refeicao: RefeicaoId,
@@ -69,6 +70,7 @@ const ACCENT_REFEICAO: Record<RefeicaoId, string> = {
 export function CardapioGrid({
   grid,
   editable = false,
+  horarios,
   onSave,
   onMarkSpecial,
   onClearSpecial,
@@ -161,7 +163,7 @@ export function CardapioGrid({
                         {refeicao.nome}
                       </div>
                       <div className="text-[10px] text-brand-dark/50">
-                        {refeicao.horario}
+                        {horarios?.[refeicao.id] ?? refeicao.horario}
                       </div>
                     </div>
                   </div>

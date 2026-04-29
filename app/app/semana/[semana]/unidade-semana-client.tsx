@@ -38,6 +38,7 @@ interface Props {
   faixaInicial: FaixaEtariaId;
   cardapios: CardapioData[];
   overrides: Record<string, RefeicaoRow[]>; // cardapio_padrao_id → overrides
+  horarios?: Record<string, string> | null;
   editable: boolean;
 }
 
@@ -72,6 +73,7 @@ export function UnidadeSemanaClient({
   faixaInicial,
   cardapios,
   overrides,
+  horarios,
   editable,
 }: Props) {
   const [faixa, setFaixa] = useState<FaixaEtariaId>(faixaInicial);
@@ -217,6 +219,7 @@ export function UnidadeSemanaClient({
           <CardapioGrid
             grid={grid}
             editable={editable}
+            horarios={horarios as any}
             onSave={handleSave}
           />
           {countOverrides > 0 && (

@@ -33,6 +33,7 @@ export default async function UnidadeSemanaPage({
 
   // Busca overrides da unidade (se houver)
   let overridesByCardapio: Record<string, any[]> = {};
+  let horariosUnidade: Record<string, string> | null = null;
   if (usuario?.unidade_id) {
     const { data: cus } = await supabase
       .from("cardapios_unidade")
@@ -46,6 +47,18 @@ export default async function UnidadeSemanaPage({
       overridesByCardapio[(cu as any).cardapio_padrao_id] =
         (cu as any).cardapio_unidade_refeicoes ?? [];
     }
+
+    // Busca horários customizados (defensivo: coluna pode ainda não existir)
+    try {
+      const { data: u } = await supabase
+        .from("unidades")
+        .select("horarios")
+        .eq("id", usuario.unidade_id)
+        .single();
+      horariosUnidade = (u as any)?.horarios ?? null;
+    } catch {
+      horariosUnidade = null;
+    }
   }
 
   return (
@@ -54,7 +67,8 @@ export default async function UnidadeSemanaPage({
       faixaInicial={searchParams.faixa ?? "bercario_2_multi"}
       cardapios={cardapios as any}
       overrides={overridesByCardapio}
-      editable={!!usuario?.unidade_id} // super_admin sem unidade_id só vê
+      horarios={horariosUnidade}
+      editable={!!usuario?.unidade_id}
     />
   );
 }

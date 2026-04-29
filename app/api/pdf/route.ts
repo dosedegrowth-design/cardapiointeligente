@@ -81,20 +81,36 @@ export async function GET(request: Request) {
       );
     }
 
-    // Descobre a unidade p/ overrides e cor/nome
+    // Descobre a unidade p/ overrides e cor/nome/horarios
     let unidadeId = unidadeIdParam ?? usuario?.unidade_id ?? null;
     let unidadeNome = "Rede";
     let corPrimaria = "#E07A5F";
+    let horariosUnidade: Record<string, string> | null = null;
 
     if (unidadeId) {
-      const { data: u } = await admin
-        .from("unidades")
-        .select("nome, cor_primaria")
-        .eq("id", unidadeId)
-        .single();
-      if (u) {
-        unidadeNome = u.nome;
-        corPrimaria = u.cor_primaria || "#E07A5F";
+      // Defensivo: coluna horarios pode ainda não existir
+      try {
+        const { data: u, error } = await admin
+          .from("unidades")
+          .select("nome, cor_primaria, horarios")
+          .eq("id", unidadeId)
+          .single();
+        if (error && error.code !== "42703") throw error;
+        if (u) {
+          unidadeNome = u.nome;
+          corPrimaria = u.cor_primaria || "#E07A5F";
+          horariosUnidade = (u as any).horarios ?? null;
+        }
+      } catch {
+        const { data: u } = await admin
+          .from("unidades")
+          .select("nome, cor_primaria")
+          .eq("id", unidadeId)
+          .single();
+        if (u) {
+          unidadeNome = u.nome;
+          corPrimaria = u.cor_primaria || "#E07A5F";
+        }
       }
     }
 
@@ -141,6 +157,7 @@ export async function GET(request: Request) {
         semana_fim: c.semana_fim,
         faixa_etaria: c.faixa_etaria,
         grid,
+        horarios: horariosUnidade,
       });
     }
 
